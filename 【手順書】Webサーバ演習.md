@@ -39,12 +39,6 @@ dnf install httpd -y
 systemctl start httpd
 ```
 ```bash
-systemctl enable httpddnf install httpd -y
-```
-```bash
-systemctl start httpd
-```
-```bash
 systemctl enable httpd
 ```
 
@@ -100,9 +94,9 @@ vi /var/www/html/yakiniku/harami.html
 
 - ページが表示される
 
-# 【構成②】DocumentRoot を /home/saba に変更する 手順書
 
 ---
+# 【構成②】DocumentRoot を /home/saba に変更する 手順書
 
 ## 概要
 
@@ -163,20 +157,26 @@ ls /home/saba/miso
 
 ### 実行コマンド
 ```bash
+cp /etc/httpd/conf/httpd.conf{,.back}
+```
+```bash
+ls /etc/httpd/conf/
+```
+```bash
 vi /etc/httpd/conf/httpd.conf
 ```
 
 ### 変更内容①（DocumentRoot）
-
+```bash
 DocumentRoot "/home/saba"
-
+```
 ### 変更内容②（Directory 設定）
-
+```bash
 <Directory "/home/saba">
 AllowOverride None
 Require all granted
 </Directory>
-
+```
 ### 設定の意味
 - DocumentRoot：公開ルートの指定
 - Require all granted：全アクセス許可
@@ -206,7 +206,9 @@ chmod -R 755 /home/saba
 - -R：再帰的に適用
 
 ### 確認方法とOKの目安
+```bash
 ls -ld /home /home/saba /home/saba/miso
+```
 
 - drwxr-xr-x になっている
 
@@ -309,8 +311,9 @@ vi /etc/httpd/conf/httpd.conf
 ```
 
 ### 追記内容
+```bash
 Redirect 302 /sa-mon.html http://EC2-2のグローバルIP/aburi-sa-mon.html
-
+```
 ### 設定の意味
 - Redirect：転送設定
 - 302：一時転送
@@ -500,23 +503,26 @@ netstat -ln | grep 80
 
 ---
 
-## 2. 制御対象ディレクトリの確認
+## 2. 制御対象ディレクトリの作成・確認
 
 ---
 
 ### この工程でしていること
-- 制御対象ディレクトリを特定する
+- 制御対象ディレクトリを作成する
 
-対象：
-/var/www/html/apple/
+### 実行コマンド
 
----
+```bash
+mkdir /var/www/html/apple/
+```
+```bash
+vi /var/www/html/apple/ringo
+```
 
 ### 確認コマンド
 ```bash
 ls /var/www/html/apple
 ```
-
 - コンテンツが存在
 
 ---
@@ -585,7 +591,7 @@ systemctl status httpd
 
 ### 確認コマンド（EC2-1）
 ```bash
-curl -LI http://自分のPrivateIP/apple/xxx
+curl -LI http://自分のPrivateIP/apple/ringo
 ```
 ### OKの目安
 HTTP/1.1 200 OK
