@@ -411,9 +411,9 @@ PrivateIP：172.31.xx.xx
 [EC2-2（相手）]
 PrivateIP：172.31.yy.yy
 ↓ 拒否
-
-両EC2は同一VPC内に存在
 ```
+※両EC2は同一VPC内に存在
+
 
 
 ## ネットワーク構成イメージ
