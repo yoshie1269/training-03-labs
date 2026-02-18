@@ -506,10 +506,6 @@ ls /var/www/html/apple
 
 ## 4-3. Apache アクセス制御設定
 
-
-## 方法①：httpd.conf に直接設定（推奨）
-
-
 ### この工程でしていること
 - IP 制御ルールを Apache に設定する
 
