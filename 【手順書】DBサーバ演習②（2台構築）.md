@@ -1,5 +1,7 @@
 # LAMP＋WordPress 2台構成 手順書（Web＋DB分離構成）
 
+---
+
 ## この構成でしていること
 - Webサーバ（Apache＋PHP＋WordPress）とDBサーバ（MariaDB）を分離する
 - DBをPrivate側に配置し、外部公開を防ぐ
@@ -13,7 +15,11 @@
  Apache/PHP/WP              MariaDB
 ```
 
+---
+
 ## 1. セキュリティグループ設計（最重要）
+
+---
 
 ### この工程でしていること
 - 通信経路を最小限に制限する
@@ -39,6 +45,8 @@ OKの目安：
 ---
 
 ## 2. DBサーバ構築（EC2-DB）
+
+---
 
 ### 2-1 MariaDB インストール
 
@@ -283,7 +291,9 @@ OKの目安：
 - Syntax OK
 
 再起動：
+```bash
 systemctl restart httpd
+```
 
 ---
 
@@ -291,7 +301,7 @@ systemctl restart httpd
 
 ブラウザ：
 ```bash
-http://WebのPublicDNS/
+http://WebのPublicIPアドレス/
 ```
 OKの目安：
 - WordPressセットアップ画面表示
