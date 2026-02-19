@@ -347,11 +347,11 @@ ss -lnt | grep 3306
 
 ---
 
-DB接続エラー → SG 3306未開放
-Timeout → SG/VPCルート確認
-接続不可 → DB_HOST間違い
-403 → 権限設定ミス
-白画面 → PHP不足
+- DB接続エラー → SG 3306未開放
+- Timeout → SG/VPCルート確認
+- 接続不可 → DB_HOST間違い
+- 403 → 権限設定ミス
+- 白画面 → PHP不足
 
 ---
 
