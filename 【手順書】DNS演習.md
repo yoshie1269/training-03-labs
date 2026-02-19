@@ -82,11 +82,17 @@ vi /etc/named.conf
 ---
 
 ### 修正内容
+コメントアウト
 ```bash
 #listen-on port 53 { 127.0.0.1; };
 #listen-on-v6 port 53 { ::1; };
+```
+変更
+```bash
 allow-query { any; };
-
+```
+追記
+```bash
 zone "example.entry.net" IN {
 type master;
 file "/var/named/example.entry.net.zone";
