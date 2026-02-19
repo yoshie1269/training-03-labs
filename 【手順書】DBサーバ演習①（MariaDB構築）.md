@@ -92,10 +92,9 @@ dnf list installed | grep php
 
 ## 1-3. MariaDB をインストールする
 
-
 ### この工程でしていること
-- データベースサーバを導入する
-- WordPress 等のデータ保存先を準備する
+- データベースサーバ（MariaDB）を導入する
+- WordPress などのデータ保存先を準備する
 
 
 ### 実行コマンド
@@ -108,13 +107,47 @@ sudo dnf info mariadb105-server
 
 
 ### コマンドの意味
-- mariadb105-server：MariaDB 本体
-- info：詳細情報表示
+■ mariadb105-server
+- MariaDB 10.5 系のデータベースサーバ本体
+
+■ dnf install
+- パッケージをインストールする
+
+■ dnf info
+- インストール済みパッケージの詳細情報を表示する
 
 
-### 確認方法とOKの目安
-- バージョン情報が表示される
-- インストール済みであること
+
+### 確認コマンド
+
+■ パッケージが正しく入ったか確認
+```bash
+rpm -qa | grep mariadb
+```
+
+OKの目安：
+- mariadb105-server が表示される
+
+■ 詳細情報確認
+```bash
+dnf list installed | grep mariadb
+```
+OKの目安：
+- mariadb105-server.x86_64 などが表示される
+
+■ サービス存在確認
+```bash
+systemctl list-unit-files | grep mariadb
+```
+OKの目安：
+- mariadb.service が表示される
+
+■ バージョン確認
+```bash
+mysql --version
+```
+OKの目安：
+- mysql  Ver 15.1 Distrib 10.5.xx-MariaDB などと表示される
 
 ---
 
@@ -515,163 +548,182 @@ SELECT user,host FROM mysql.user;
 
 ---
 
-## 2-5. wp-config.php を作成する（修正版）
+## 2-5. wp-config.php を作成する（修正版：作成→配置の順）
 
 
 ### この工程でしていること
-- Apache が参照している DocumentRoot 配下に wp-config.php を作成する
-- WordPress と MariaDB を接続する設定を正しい値で反映する
-- 設定ミス（パス違い・タイポ）を防止する
+- 作業用ディレクトリ（例：~/wordpress）で wp-config.php を作成・編集する
+- DB接続情報を正しく設定し、構文エラーを防ぐ
+- 公開前に設定ミスを検知する
 
 
-### 事前確認（重要）
-- Apache の DocumentRoot を確認する
+
+### 事前確認（作業場所の明確化）
 ```bash
-ls -la /var/www/html
+ls -la ~/wordpress
 ```
-
-- WordPress が配置されている場所を確認する
-
-  → /var/www/html 配下に wp-config-sample.php が存在すること
-
-※ 必ず /var/www/html 配下のファイルを編集すること
-
-
-### 実行内容（フルパス指定で実施）
-
-- wp-config.php を作成する
 ```bash
- cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
- ```
+ls -la ~/wordpress/wp-config-sample.php
+```
+OKの目安：
+- wordpress ディレクトリが存在する
+- wp-config-sample.php が存在する
 
-- 編集対象ファイル
+
+
+### 実行内容
 ```bash
- vi /var/www/html/wp-config.php
+cd ~/
+```
+```bash
+cp wordpress/wp-config-sample.php wordpress/wp-config.php
 ```
 
 
-### 設定内容（DB作成時と完全一致させる）
+### 確認
+```bash
+ls wordpress/ | grep config
+```
+- wp-config.phpがある
 
-- DBで設定した内容を反映する
+
+### 実行内容
+```bash
+vi wordpress/wp-config.php
+```
+
+### 設定内容（DB作成時と完全一致）
 ```bash
 define('DB_NAME', 'wordpress_db');
 define('DB_USER', 'wordpress-user');
 define('DB_PASSWORD', 'yoshie');
 define('DB_HOST', 'localhost');
 ```
-※ 注意事項
+
+
+### 設定の意味
+
+- DB_NAME：接続先データベース名
+- DB_USER：DB接続ユーザー名
+- DB_PASSWORD：DB接続パスワード
+- DB_HOST：DBサーバの接続先（同一サーバなら localhost）
+
+
+### 注意事項（障害防止）
+
 - ハイフン（-）とアンダースコア（_）を混在させない
-- DB_USER に @localhost は書かない
-- 全角クォート（‘ ’ “ ”）は使用しない
-- 必ず半角シングルクォート（'）を使用する
+- DB_USER に @localhost を書かない
+- 全角クォートを使わない
+- 必ず半角シングルクォート（'）を使う
 
 
 ### セキュリティキー設定
-
-以下 URL で生成した値を貼り付ける：
+```bash
 https://api.wordpress.org/secret-key/1.1/salt/
-
-例：
-```bash
-define('AUTH_KEY',         '生成された値');
-define('SECURE_AUTH_KEY',  '生成された値');
-define('LOGGED_IN_KEY',    '生成された値');
-define('NONCE_KEY',        '生成された値');
-define('AUTH_SALT',        '生成された値');
-define('SECURE_AUTH_SALT', '生成された値');
-define('LOGGED_IN_SALT',   '生成された値');
-define('NONCE_SALT',       '生成された値');
 ```
-
-### 意味
-- DB 接続情報設定
-
-  → WordPress が MariaDB にログインするための情報
-
-- Cookie 暗号化強化
-
-  → ログイン情報の改ざん防止
-
-  → セッション保護
+生成された値を貼り付ける
 
 
-### 確認方法とOKの目安
 
-- 構文チェックを実施する
+### 確認方法
 ```bash
-  php -l /var/www/html/wp-config.php
+php -l wordpress/wp-config.php
 ```
-OK の目安：
-- No syntax errors detected と表示されること
-
-- DB接続テスト（任意だが推奨）
-
-  WordPress と同条件で DB 接続できること
-
-
-### トラブル時の確認ポイント
-
-Error establishing a database connection が出た場合：
-
-1. MariaDB が起動しているか
-2. DB が存在するか
-3. ユーザーが存在するか
-4. DB_USER のスペルミスがないか
-5. 編集したファイルが /var/www/html/wp-config.php か確認する
+OKの目安：
+- No syntax errors detected と表示される
 
 ---
 
-## 2-6. WordPress ファイルを配置する
+## 2-6. WordPress を /var/www/html に配置する
 
 
 ### この工程でしていること
-- Apache 公開領域に WordPress を設置する
+- Apache公開領域にWordPress一式を配置する
+- 作業用で編集した wp-config.php を公開側へ反映する
 
 
-### 実行コマンド
+### 実行内容
 ```bash
-cp -r wordpress/* /var/www/html/
+ls -la /var/www/html
 ```
 ```bash
-mkdir /var/www/html/blog
+cp -a wordpress/. /var/www/html/
 ```
 ```bash
-cp -r wordpress/* /var/www/html/blog/
+chown -R ec2-user:apache /var/www/html
 ```
 
 
-### 確認方法とOKの目安
+### 確認方法
 ```bash
-ls /var/www/html
+ls -la /var/www/html | egrep "wp-config.php|wp-admin|wp-includes"
 ```
-- wp-config.php などが存在
+OKの目安：
+- wp-config.php が存在する
+- wp-admin、wp-includes ディレクトリが存在する
+
+DB設定確認
+```bash
+grep -n "DB_NAME\|DB_USER\|DB_PASSWORD\|DB_HOST" /var/www/html/wp-config.php
+```
+OKの目安：
+- DB_NAME、DB_USER 等が想定通り表示される
+- typo（wordpress-usr等）がない
 
 ---
 
-## 2-7. Apache 設定を変更する
+## 2-7. Apache 設定変更（.htaccess 有効化）
+
 
 
 ### この工程でしていること
-- .htaccess を有効化する
-- WordPress のリライトルールを有効にする
+- WordPressのリライトルールを有効にする
+- .htaccess をApacheが読み取れるようにする
 
 
-### 実行コマンド
+### 実行内容
 ```bash
-sudo vi /etc/httpd/conf/httpd.conf
+vi /etc/httpd/conf/httpd.conf
+```
+
+設定変更：
+```bash
+<Directory "/var/www/html">
+    AllowOverride All
+</Directory>
 ```
 
 
-### 設定変更
+### 設定の意味
+
+- AllowOverride All
+  → .htaccess の設定を有効にする
+  → パーマリンク設定が動作するようにする
+
+
+### 確認方法
 ```bash
-<Directory “/var/www/html”>
-AllowOverride All
+httpd -t
 ```
+
+OKの目安：
+- Syntax OK と表示される
+
+反映（必要時）
+```bash
+systemctl restart httpd
+```
+
+確認：
+```bash
+systemctl status httpd
+```
+OKの目安：
+- active (running) と表示される
 
 ---
 
 ## 2-8. 画像処理用 PHP モジュールを導入する
-
 
 
 ### この工程でしていること
@@ -774,10 +826,7 @@ sudo systemctl enable httpd
 sudo systemctl enable mariadb
 ```
 ```bash
-sudo systemctl status mariadb
-```
-```bash
-sudo systemctl status httpd
+sudo systemctl status mariadb httpd
 ```
 
 
