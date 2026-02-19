@@ -96,6 +96,16 @@ sudo systemctl start mariadb
 sudo systemctl enable mariadb
 ```
 
+### 確認
+```bash
+systemctl status mariadb
+```
+```bash
+sudo systemctl is-enabled mariadb
+```
+- activeが表示される
+- enabledが表示される
+
 ---
 
 ## 2-3. 初期セキュリティ設定
@@ -121,16 +131,24 @@ mysql -u root -p
 CREATE DATABASE wordpress_db;
 ```
 ```bash
-CREATE USER 'wpuser'@'%' IDENTIFIED BY 'StrongPass123';
+CREATE USER '<ユーザ名>'@'%' IDENTIFIED BY '<パスワード>';
 ```
 ```bash
-GRANT ALL PRIVILEGES ON wordpress_db.* TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON wordpress_db.* TO '<ユーザ名>'@'%';
 ```
 ```bash
 FLUSH PRIVILEGES;
 ```
 ```bash
 exit
+```
+例
+```bash
+CREATE DATABASE wordpress_db;
+
+CREATE USER 'wpuser'@'%' IDENTIFIED BY 'StrongPass123';
+GRANT ALL PRIVILEGES ON wordpress_db.* TO 'wpuser'@'%';
+FLUSH PRIVILEGES;
 ```
 
 ---
