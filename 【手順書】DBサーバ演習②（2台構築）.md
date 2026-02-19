@@ -156,6 +156,8 @@ OKの目安：
 ## 3. Webサーバ構築（EC2-Web）
 ※webサーバで実行
 
+---
+
 ### 3-1 LAMP導入
 
 #### この工程でしていること
@@ -246,6 +248,8 @@ OKの目安：
 
 ## 4. WordPress 設定（DB接続）
 
+---
+
 ### この工程でしていること
 - WebサーバからDBへ接続できるようにする
 
@@ -266,6 +270,9 @@ OKの目安：
 ---
 
 ## 5. Web→DB 疎通確認
+
+---
+
 ```bash
 mysql -u wpuser -h DBのPrivateIP -p wordpress_db
 ```
@@ -275,6 +282,9 @@ OKの目安：
 ---
 
 ## 6. Apache設定
+
+---
+
 ```bash
 vi /etc/httpd/conf/httpd.conf
 ```
@@ -299,6 +309,9 @@ systemctl restart httpd
 
 ## 7. Webインストール
 
+---
+
+
 ブラウザ：
 ```bash
 http://WebのPublicIPアドレス/
@@ -309,6 +322,9 @@ OKの目安：
 ---
 
 ## 8. 最終確認
+
+---
+
 ```bash
 systemctl status httpd
 ```
@@ -329,6 +345,8 @@ ss -lnt | grep 3306
 
 ## 9. 典型ミス対策
 
+---
+
 DB接続エラー → SG 3306未開放
 Timeout → SG/VPCルート確認
 接続不可 → DB_HOST間違い
@@ -338,6 +356,8 @@ Timeout → SG/VPCルート確認
 ---
 
 ## 完成状態
+
+---
 
 - Web/DB分離
 - DBはPrivate配置
