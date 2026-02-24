@@ -1,105 +1,88 @@
-# DNS総合演習 手順書（権威DNS＋名前解決＋WordPress＋DBホスト名接続）
+# DNS総合演習 手順書（teamg.entrycl.net 構成）
 
 ---
 
 # 1. 概要
 
-本演習では、以下の統合構成を構築する。
+本手順書では、以下の構成を構築する。
 
-1. EC2 2台構成で権威DNSを構築する
-2. 別EC2から名前解決を行う
-3. WordPress をドメインで公開する
-4. WordPress から DB へ「ホスト名」で接続する
+- EC2-1：権威DNS（BIND）＋DB
+- EC2-2：Web（WordPress）
+- ドメイン：teamg.entrycl.net
+- WordPress から DB へホスト名（db.teamg.entrycl.net）で接続
 
-DNS → Web → DB の連携構成を完成させる。
+DNS → Web → DB をすべてホスト名で連携させる。
 
 ---
 
 # 2. 構成図
 ```bash
 
-            [ Internet ]
-                  |
-                  v
-        entry.net（レジストラ）
-                  |
-              NS委譲
-                  |
-                  v
-  +----------------------------------+
-  |          EC2-1（DNS + DB）        |
-  |----------------------------------|
-  | BIND（権威DNS）                   |
-  | MariaDB（DBサーバ）               |
-  | IP: 172.31.10.10                 |
-  +----------------------------------+
-                  |
-             同一VPC通信
-                  |
-  +----------------------------------+
-  |          EC2-2（Web）             |
-  |----------------------------------|
-  | Apache                           |
-  | PHP                              |
-  | WordPress                        |
-  | IP: 172.31.10.20                 |
-  +----------------------------------+
-
+                [ Internet ]
+                      |
+                      v
+          entrycl.net（親ドメイン）
+                      |
+                  NS委譲
+                      |
+                      v
+    +----------------------------------+
+    | EC2-1（DNS + DB）                |
+    |----------------------------------|
+    | BIND（権威DNS）                  |
+    | MariaDB                          |
+    | Public IP: 52.41.166.54          |
+    | Private IP: 172.31.22.149        |
+    +----------------------------------+
+                      |
+                 同一VPC通信
+                      |
+    +----------------------------------+
+    | EC2-2（Web）                     |
+    |----------------------------------|
+    | Apache / PHP / WordPress         |
+    | Public IP: 52.88.132.64          |
+    +----------------------------------+
 ```
 
 ---
 
 # 3. 使用サーバ
 
-| 役割 | EC2 | 主な機能 |
-|------|------|----------|
-| DNS + DB | EC2-1 | BIND / MariaDB |
-| Web | EC2-2 | Apache / PHP / WordPress |
+| 役割 | サーバ | IP |
+|------|--------|----|
+| DNS + DB | EC2-1 | 52.41.166.54 / 172.31.22.149 |
+| Web | EC2-2 | 52.88.132.64 |
 
 ---
 
-# 4. 前提条件
-
-- entry.net にてドメイン取得済み
-- EC2 は同一 VPC 内
-- Public IP 割当済み
-- セキュリティグループ設定済み
-  - 53/TCP・UDP
-  - 80/TCP
-  - 3306/TCP（Web→DBのみ）
+# 【構成①】権威DNS構築（EC2-1）
 
 ---
 
-# 【構成①】権威DNS構築と名前解決
-
----
-
-## 1. BIND インストール（EC2-1）
+## 1. BIND インストール
 
 ### この工程でしていること
-- 権威DNSサーバを構築する
+- 権威DNSサーバをインストールする
 
 ### 実行コマンド（EC2-1）
 ```bash
 dnf install bind -y
 ```
+### コマンドの意味
+- bind：DNSサーバ本体
+- -y：確認なし実行
 
 ### 確認方法
 ```bash
 dnf list installed | grep bind
 ```
-
 ### OKの目安
-- bind パッケージが表示される
+- bind が表示される
 
 ---
 
-## 2. named 起動（EC2-1）
-
-### この工程でしていること
-- DNSサービスを起動し、自動起動設定する
-
-### 実行コマンド
+## 2. named 起動
 ```bash
 systemctl start named
 ```
@@ -107,22 +90,20 @@ systemctl start named
 systemctl enable named
 ```
 
-### 確認方法
+### この工程でしていること
+- DNSサービスを起動
+- OS再起動後も自動起動
+
+### 確認
 ```bash
 systemctl status named
 ```
-### OKの目安
+OKの目安：
 - active (running)
 
 ---
 
-## 3. named.conf 設定（EC2-1）
-
-### この工程でしていること
-- 外部からの問い合わせを許可する
-- ゾーンを登録する
-
-### 実行コマンド
+## 3. named.conf 設定
 ```bash
 vi /etc/named.conf
 ```
@@ -133,229 +114,183 @@ vi /etc/named.conf
 #listen-on port 53 { 127.0.0.1; };
 #listen-on-v6 port 53 { ::1; };
 ```
+
 変更
 ```bash
 allow-query { any; };
 ```
+
 追記
 ```bash
-zone “example.entry.net” IN {
+zone “teamg.entrycl.net” IN {
 type master;
-file “/var/named/example.entry.net.zone”;
+file “/var/named/teamg.entrycl.net.zone”;
 };
 ```
+---
 
-### 確認方法
+### 各設定の意味
+
+| 設定 | 意味 |
+|------|------|
+| listen-on | 外部からの53番アクセス許可 |
+| allow-query any | 全ネットワークから問い合わせ許可 |
+| zone | 管理するドメイン定義 |
+| type master | このサーバが権威DNS |
+
+---
+
+### 設定確認
 ```bash
 named-checkconf
 ```
-### OKの目安
-- エラーが出ない
+OK：
+- エラーなし
 
 ---
 
-## 4. ゾーンファイル作成（EC2-1）
-
-### この工程でしていること
-- Aレコードを登録する
-- NSレコードを設定する
-
-### 実行コマンド
+# 4. ゾーンファイル作成（最重要）
 ```bash
-vi /var/named/example.entry.net.zone
+vi /var/named/teamg.entrycl.net.zone
 ```
-### 記載内容
+---
+
+## 設定内容（指定内容を反映）
 ```bash
-$TTL 3600
-@ IN SOA ns.example.entry.net. admin.example.entry.net. (
-20220401
-3600
-3600
-3600
-3600 )
+$TTL 30
+ IN SOA ns.teamg.entrycl.net. admin.teamg.entrycl.net. (
+20260225 ; serial
+3600 ; refresh
+3600 ; retry
+3600 ; expire
+3600 ) ; minimum
 
-IN NS ns.example.entry.net.
+IN NS ns.teamg.entrycl.net.
 
-ns  IN A 172.31.10.10
-web IN A 172.31.10.20
-db  IN A 172.31.10.10
+ns  IN A 52.41.166.54
+web IN A 52.88.132.64
+db  IN A 172.31.22.149
 ```
+---
 
-### 確認方法
-```bash
-named-checkzone example.entry.net /var/named/example.entry.net.zone
-```
-
-### OKの目安
-- OK と表示される
+# ゾーンファイルの詳細解説
 
 ---
 
-## 5. 名前解決確認（EC2-2）
+## $TTL 30
 
-### この工程でしていること
-- クライアントからDNS問い合わせを行う
-
-### 実行コマンド（EC2-2）
-```bash
-dig @172.31.10.10 web.example.entry.net
-```
-
-### OKの目安
-- 172.31.10.20 が返る
+意味：
+- DNSキャッシュ有効時間（30秒）
+- 設定変更の反映を早くするため短く設定
 
 ---
 
-# 【構成②】WordPress 公開（DNS連携）
+## SOA レコード
+```bash
+ IN SOA ns.teamg.entrycl.net. admin.teamg.entrycl.net.
+```
+| 項目 | 意味 |
+|------|------|
+| @ | zoneのルート |
+| SOA | 権威情報 |
+| ns.teamg... | 主DNS |
+| admin... | 管理者メール（@を.に置換） |
 
 ---
 
-## 6. LAMP 構築（EC2-2）
+## serial（20260225）
 
-### この工程でしていること
-- Web公開環境を構築する
-
-### 実行コマンド
-```bash
-dnf install httpd php php-mysqlnd php-fpm wget -y
-```
-```bash
-systemctl start httpd
-```
-```bash
-systemctl enable httpd
-```
-
-### 確認方法
-```bash
-systemctl status httpd
-```
-
-### OKの目安
-- active (running)
+意味：
+- ゾーン更新番号
+- 修正時は必ず増やす
 
 ---
 
-## 7. WordPress 導入（EC2-2）
-
-### この工程でしていること
-- WordPress をWeb公開領域へ配置する
-
-### 実行コマンド
+## NS レコード
 ```bash
-wget https://wordpress.org/latest.tar.gz
+IN NS ns.teamg.entrycl.net.
 ```
-```bash
-tar -xzf latest.tar.gz
-```
-```bash
-cp -r wordpress/* /var/www/html/
-```
-
-### 確認方法
-```bash
-ls /var/www/html
-```
-### OKの目安
-- wp-config-sample.php が存在
+意味：
+- このドメインのDNSは ns.teamg... であると宣言
 
 ---
 
-## 8. MariaDB 構築（EC2-1）
-
-### この工程でしていること
-- DBサーバを構築する
-
-### 実行コマンド
-```bash
-dnf install mariadb105-server -y
-```
-```bash
-systemctl start mariadb
-```
-```bash
-systemctl enable mariadb
-```
-
-### OKの目安
-- active (running)
+# Aレコードの詳細説明（重要）
 
 ---
 
-## 9. WordPress 用 DB 作成（EC2-1）
+## ns IN A 52.41.166.54
 
-### この工程でしていること
-- WordPress 専用DBとユーザーを作成する
+意味：
+- ns.teamg.entrycl.net → 52.41.166.54
+- DNSサーバ自身のIP（Public）
 
-### 実行コマンド
-```bash
-mysql -u root -p
-```
-
-```bash
-CREATE DATABASE wpdb;
-CREATE USER ‘wpuser’@’%’ IDENTIFIED BY ‘password’;
-GRANT ALL ON wpdb.* TO ‘wpuser’@’%’;
-FLUSH PRIVILEGES;
-```
-
-### 確認方法
-```bash
-SHOW DATABASES;
-```
-
-### OKの目安
-- wpdb が存在
+用途：
+- 親ドメインからの委譲先
 
 ---
 
-## 10. wp-config 設定（EC2-2）
+## web IN A 52.88.132.64
 
-### この工程でしていること
-- DBへホスト名で接続する
+意味：
+- web.teamg.entrycl.net → WebサーバPublic IP
 
-### 実行コマンド
-```bash
-vi /var/www/html/wp-config.php
-```
-### 設定内容
-```bash
-define(‘DB_NAME’,‘wpdb’);
-define(‘DB_USER’,‘wpuser’);
-define(‘DB_PASSWORD’,‘password’);
-define(‘DB_HOST’,‘db.example.entry.net’);
-```
-
-### 意味
-- DB_HOST にIPではなくホスト名を指定
-- DNS経由接続を実現
+用途：
+- インターネット公開用
+- ブラウザアクセス用
 
 ---
 
-## 11. DB接続確認（EC2-2）
+## db IN A 172.31.22.149
 
-### この工程でしていること
-- ホスト名解決＋DB接続確認
+意味：
+- db.teamg.entrycl.net → DBサーバPrivate IP
 
-### 実行コマンド
+用途：
+- VPC内部通信用
+- WordPressからの接続専用
+
+重要：
+- 外部公開しないためPrivate IP
+
+---
+
+# 5. ゾーンチェック
 ```bash
-mysql -u wpuser -h db.example.entry.net -p
+named-checkzone teamg.entrycl.net /var/named/teamg.entrycl.net.zone
 ```
 
-### OKの目安
+OK：
+- OK と表示
+
+---
+
+# 6. named 再起動
+```bash
+systemctl restart named
+```
+---
+
+# 7. 名前解決確認（EC2-2）
+```bash
+dig @52.41.166.54 web.teamg.entrycl.net
+```
+```bash
+dig @52.41.166.54 db.teamg.entrycl.net
+```
+OKの目安：
+
+web → 52.88.132.64  
+db → 172.31.22.149
+
+---
+
+# WordPress 側 DB接続確認
+```bash
+mysql -u wpuser -h db.teamg.entrycl.net -p
+```
+OK：
 - 接続成功
-
----
-
-## 12. Web公開確認
-
-ブラウザでアクセス
-```bash
-http://web.example.entry.net/
-```
-
-### OKの目安
-- WordPress 初期画面表示
 
 ---
 
@@ -382,56 +317,20 @@ http://web.example.entry.net/
 
 ---
 
-# トラブル対策（試験頻出）
+# 最終チェックリスト
 
----
-
-## 名前解決不可
-
-原因：
-- allow-query 未設定
-- named未起動
-- NS委譲ミス
-- SG53未開放
-
----
-
-## DB接続エラー
-
-原因：
-- DB_HOST IP指定
-- DNS未反映
-- 3306未開放
-- GRANT '%' 未設定
-
----
-
-## Web表示不可
-
-原因：
-- SG80未開放
-- Apache未起動
-- DocumentRootミス
-
----
-
-# 最終確認チェックリスト
-
+- named 起動
+- named-checkzone OK
 - dig 成功
-- ns レコード解決
-- web レコード解決
+- web表示成功
 - DBホスト名接続成功
-- WordPress 表示成功
+- WordPress稼働
 
 ---
 
 # 完了状態
 
-- 権威DNS稼働
-- ドメインでWeb公開
-- DBホスト名接続成功
-- WordPress 正常稼働
-
-
-⸻
-
+- teamg.entrycl.net が権威DNSで管理されている
+- web.teamg.entrycl.net でWeb公開
+- db.teamg.entrycl.net で内部DB接続
+- DNS → Web → DB がホスト名連携
