@@ -261,7 +261,7 @@ Web × 複数
 ```
 ---
 
-## 手順① 分散確認
+## 1. 分散確認
 
 ### 操作
 - Pool作成（teamG1）
@@ -273,7 +273,7 @@ Web × 複数
 
 ---
 
-## 手順② iRule作成
+## 2. iRule作成
 
 ### この工程でしていること
 - 全停止時に503を返す制御
@@ -296,13 +296,13 @@ Sorry…
 
 ---
 
-## 手順③ VSへ適用
+## 3. VSへ適用
 
 Local Traffic → Virtual Server → Resources → iRules追加
 
 ---
 
-## 手順④ 確認
+## 4. 確認
 
 ### 通常時
 - 通常ページ表示
@@ -323,7 +323,7 @@ Local Traffic → Virtual Server → Resources → iRules追加
 
 ---
 
-## tmshへ移行
+## 1. tmshへ移行
 ```bash
 tmsh
 ```
@@ -332,7 +332,7 @@ OK：
 
 ---
 
-## Pool作成
+## 2. Pool作成
 ```bash
 create ltm pool teamG2 
 members add { 
@@ -349,7 +349,7 @@ CL_kosaka_teamG1:80
 
 ---
 
-## 作成確認
+## 3. 作成確認
 ```bash
 list ltm pool teamG2
 ```
@@ -362,7 +362,7 @@ OK：
 
 ---
 
-## 設定保存
+## 4. 設定保存
 ```bash
 save sys config
 ```
