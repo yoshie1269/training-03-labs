@@ -108,6 +108,8 @@ netstat -ln | grep 25
 ### 実行コマンド
 ```bash
 dnf install mailx
+```
+```bash
 dnf list installed | grep mailx
 ```
 
@@ -122,6 +124,8 @@ dnf list installed | grep mailx
 ### 実行コマンド
 ```bash
 cp /etc/postfix/main.cf /etc/postfix/main.cf.date "+%Y%m%d_%H%M%S".bak
+```
+```bash
 ls -l /etc/postfix/ | grep main
 ```
 
@@ -136,6 +140,8 @@ ls -l /etc/postfix/ | grep main
 ### 実行コマンド
 ```bash
 grep -v ^# /etc/postfix/main.cf | cat -s > /tmp/main.cf
+```
+```bash
 cp /tmp/main.cf /etc/postfix/main.cf
 ```
 
@@ -193,6 +199,8 @@ systemctl restart postfix
 ### 実行コマンド
 ```bash
 mail -s onishi2 root@mail-onishi2.teamg.entrycl.net
+```
+```bash
 mail
 ```
 
@@ -207,8 +215,14 @@ mail
 ### 実行コマンド
 ```bash
 dnf install rsyslog
+```
+```bash
 dnf list installed | grep rsyslog
+```
+```bash
 systemctl start rsyslog
+```
+```bash
 systemctl status rsyslog
 ```
 
@@ -267,15 +281,18 @@ vi /etc/named.conf
 ```
 
 ### 設定内容
-```bash
 - listen設定の変更（コメントアウト）
+```bash
 #listen-on port 53 { 127.0.0.1; };
 #listen-on-v6 port 53 { ::1; };
-
+```
 - クエリ許可設定
+```bash
 allow-query { any; };
+```
 
 - ゾーン設定の追加（末尾に追記）
+```bash
 zone "teamg.entrycl.net" IN {
 type master;
 file "/var/named/teamg.entrycl.net.zone";
@@ -353,6 +370,8 @@ named-checkzone teamg.entrycl.net /var/named/teamg.entrycl.net.zone
 ### 実行コマンド
 ```bash
 systemctl start named
+```
+```bash
 systemctl status named
 ```
 
@@ -430,7 +449,11 @@ vi /etc/exports
 ### 実行コマンド
 ```bash
 systemctl restart nfs-server
+```
+```bash
 systemctl enable nfs-server
+```
+```bash
 exportfs -a
 ```
 
@@ -454,8 +477,10 @@ exportfs -a
 
 ### 実行コマンド
 ```bash
-useradd yoshie -g mail -M -K MAIL_DIR=/dev/null -s /sbin/nologin
-passwd yoshie
+useradd <ユーザ名> -g mail -M -K MAIL_DIR=/dev/null -s /sbin/nologin
+```
+```bash
+passwd <ユーザ名>
 ```
 
 ### 何をしているか
@@ -471,6 +496,8 @@ passwd yoshie
 ### 実行コマンド
 ```bash
 dnf install dovecot
+```
+```bash
 dnf list installed | grep dovecot
 ```
 
@@ -518,6 +545,8 @@ mail_location = maildir:/var/spool/mail/%u/
 ### 実行コマンド
 ```bash
 cp /etc/dovecot/conf.d/10-ssl.conf /etc/dovecot/conf.d/10-ssl.conf.date "+%Y%m%d_%H%M%S".bak
+```
+```bash
 ls -l /etc/dovecot/conf.d/ | grep 10-ssl
 ```
 
@@ -548,6 +577,8 @@ vi /etc/dovecot/conf.d/10-ssl.conf
 ### 実行コマンド
 ```bash
 cp /etc/dovecot/conf.d/10-auth.conf /etc/dovecot/conf.d/10-auth.conf.date "+%Y%m%d_%H%M%S".bak
+```
+```bash
 ls -l /etc/dovecot/conf.d/ | grep 10-auth
 ```
 
@@ -578,6 +609,8 @@ vi /etc/dovecot/conf.d/10-auth.conf
 ### 実行コマンド
 ```bash
 systemctl start dovecot
+```
+```bash
 systemctl enable dovecot
 ```
 
@@ -609,6 +642,8 @@ vi /etc/fstab
 ### 実行コマンド
 ```bash
 mount /var/spool/mail
+```
+```bash
 df
 ```
 
@@ -636,6 +671,8 @@ ls -ld /var/spool/mail
 ### 実行コマンド
 ```bash
 chown -R root:mail /var/spool/mail
+```
+```bash
 chmod -R 770 /var/spool/mail
 ```
 
@@ -651,6 +688,8 @@ chmod -R 770 /var/spool/mail
 ### 実行コマンド
 ```bash
 systemctl restart postfix
+```
+```bash
 systemctl restart dovecot
 ```
 
@@ -677,6 +716,8 @@ tail -f /var/log/maillog
 ### 実行コマンド
 ```bash
 mail
+```
+```bash
 ls /var/spool/mail/ユーザ名/new
 ```
 
