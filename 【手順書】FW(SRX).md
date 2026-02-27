@@ -14,13 +14,13 @@
 ## 構成図
 ```bash
 [外部端末]
-|
-|  HTTP(80)  宛先=EIP
-v
+　　|
+　　|  HTTP(80)  宛先=EIP
+　　v
 [EIP] -> [SRX untrust 側(セカンダリIP:172.31.0.99)]
-|
-| DNAT：宛先を Web へ変換
-v
+　　|
+　　| DNAT：宛先を Web へ変換
+　　v
 [Web(172.31.1.251:80) trust側]
 ```
 
