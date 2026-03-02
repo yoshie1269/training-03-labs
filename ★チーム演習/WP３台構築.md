@@ -254,11 +254,12 @@ mv wordpress/* /var/www/html/
 vi /var/www/html/wp-config.php
 
 変更：
-
+```bash
 define('DB_NAME','wordpress_db');
 define('DB_USER','wordpress-user');
 define('DB_PASSWORD','wordpress-password');
 define('DB_HOST','db-1.wp.local');
+```
 
 ---
 
