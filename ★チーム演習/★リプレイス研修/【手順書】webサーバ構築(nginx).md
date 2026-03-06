@@ -117,7 +117,7 @@ Shift + V
 :s/^/# /
 ```
 
-## 追記内容
+## 追記内容(必ずhttp{}の中に入れる)
 ```bash
 server {
 
@@ -208,29 +208,11 @@ keepalive 32;
 
 ### 設定の意味
 
-#### AP1
-
-通常利用されるTomcat
-
-#### max_fails
-
-3回失敗すると
-
-#### fail_timeout
-
-10秒間切断
-
-
-
-#### backup
-
-AP1が停止した場合のみ使用
-
-
-
-#### keepalive
-
-接続再利用
+- AP1：通常利用されるTomcat
+- max_fails：3回失敗すると
+- fail_timeout：10秒間切断
+- backup：AP1が停止した場合のみ使用
+- keepalive：接続再利用
 
 
 # 2-4 nginx設定チェック
@@ -240,10 +222,9 @@ nginx -t
 
 
 ### OK例
-```bash
 syntax is ok  
+
 test is successful
-```
 
 
 # 2-5 nginx設定反映
@@ -336,13 +317,9 @@ certbot renew --force-renewal
 
 ### 注意
 
-通常の更新
+通常の更新（certbot renew）
 
-certbot renew
-
-では
-
-期限が近い証明書のみ更新
+では期限が近い証明書のみ更新
 
 
 ## 4-3 nginxへ証明書反映
