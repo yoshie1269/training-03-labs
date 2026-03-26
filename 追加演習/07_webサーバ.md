@@ -79,14 +79,14 @@ Basic認証対象のページを作成
 
 ### コマンド
 ```bash
-mkdir -p /var/www/html/test  
+mkdir -p /var/www/html/test
 ```
 
 （HTMLファイル作成）
 
 ### 確認方法
 ```bash
-ls -l /var/www/html/test  
+ls -l /var/www/html/test
 ```
 
 ### OKの目安
@@ -126,7 +126,9 @@ ls -l /var/www/html/test
 ---
 
 ### 確認方法
+```bash
 cat /etc/httpd/conf.d/basic-test.conf  
+```
 
 ### OKの目安
 - 設定内容が表示される  
@@ -140,12 +142,12 @@ cat /etc/httpd/conf.d/basic-test.conf
 
 ### コマンド
 ```bash
-htpasswd -c /etc/httpd/conf/.htpasswd test  
+htpasswd -c /etc/httpd/conf/.htpasswd <ユーザ名>  
 ```
 
 ### コマンドの意味
 - -c：新規作成（初回のみ）  
-- test：ユーザー名  
+- ユーザー名  
 
 ### 確認方法
 ```bash
@@ -230,7 +232,7 @@ curl -I http://127.0.0.1/test/
 
 ### 認証ありアクセス
 ```bash
-curl -u test:パスワード -I http://127.0.0.1/test/  
+curl -u test:<パスワード> -I http://127.0.0.1/test/  
 ```
 
 ### OKの目安
