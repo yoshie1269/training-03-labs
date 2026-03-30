@@ -1,41 +1,47 @@
-# LAMP＋WordPress 2台構成 自動化手順書（Ansible・簡略版）
+# LAMP＋WordPress 2台構成（Ansible）手順書
 
 ## 概要
 
 ### この構成でしていること
 
 - WebサーバとDBサーバを分離
-- Ansibleで構築を自動化
-- WordPress環境を再現可能にする
+- Ansibleで自動構築
+- WordPressを2tier構成で動作
 
 ---
 
-### 構成
+### 構成図
 ```
-[Ansible実行端末]  
+Ansible実行サーバ  
 ↓ SSH  
-[EC2-Web]　　　[EC2-DB]  
+Webサーバ → TCP/3306 → DBサーバ  
 ```
-
-- Web：Apache / PHP / WordPress  
-- DB：MariaDB  
 
 ---
 
-## 事前準備
+### サーバ役割
+
+|役割|内容|
+|---|---|
+|Ansible|構築実行|
+|Web|Apache / PHP / WordPress|
+|DB|MariaDB|
+
+---
+
+## 1 事前準備
 
 ### この工程でしていること
 
-Ansibleから各サーバへ接続可能な状態を作る
+構築用サーバと通信制御の準備
 
 ---
 
-### 実施内容
+### EC2準備
 
-- Ansible実行端末を用意  
-- Web / DBへSSH接続設定  
-- 鍵ファイル準備  
-- セキュリティグループ設定  
+- Ansibleサーバ  
+- Webサーバ  
+- DBサーバ  
 
 ---
 
@@ -55,37 +61,32 @@ Ansibleから各サーバへ接続可能な状態を作る
 |Port|Source|
 |---|---|
 |22|自分IP|
-|3306|SG-Web|
+|3306|WebサーバSG|
 
 ---
 
 ### OKの目安
 
-- DBの3306がWebのみ許可  
-- 0.0.0.0/0で3306開いていない  
+- DBの3306はWebのみ許可  
+- 0.0.0.0/0は禁止  
 
 ---
 
-## 作成ファイル
+## 2 Ansibleインストール（実行サーバ）
 
 ### この工程でしていること
 
-Ansibleで使用する設定ファイルを用意
+自動構築ツール導入
 
 ---
 
-### 作成内容
-
-- inventory.ini ファイルを作成  
-- lamp_wp_2tier.yml ファイルを作成  
-
----
-
-## Ansible実行端末準備
-
-### この工程でしていること
-
-Ansibleの実行環境を整備
+### コマンド
+```bash
+sudo dnf update -y  
+```
+```bash
+sudo dnf install -y ansible-core 
+```
 
 ---
 
@@ -98,11 +99,214 @@ ansible --version
 
 ### OKの目安
 
-- バージョンが表示される  
+- バージョン表示  
 
 ---
 
-### コレクション導入
+## 3 SSH鍵作成
+
+### この工程でしていること
+
+パスワードなし接続準備
+
+---
+
+### コマンド
+```bash
+ssh-keygen -t ed25519  
+```
+
+---
+
+### 保存先
+```bash
+~/.ssh/id_ed25519  
+```
+
+---
+
+### 確認
+```bash
+ls -l ~/.ssh  
+```
+
+---
+
+### OKの目安
+
+- id_ed25519  
+- id_ed25519.pub  
+
+---
+
+## 4 公開鍵配布（Web / DB）
+
+### この工程でしていること
+
+Ansibleから接続できるようにする
+
+---
+
+### 公開鍵確認
+```bash
+cat ~/.ssh/id_ed25519.pub  
+```
+
+---
+
+### 接続先で実施
+```bash
+mkdir -p ~/.ssh  
+```
+```bash
+chmod 700 ~/.ssh  
+```
+
+```bash
+vi ~/.ssh/authorized_keys  
+```
+（公開鍵を貼り付け）  
+```bash
+chmod 600 ~/.ssh/authorized_keys  
+```
+
+---
+
+### OKの目安
+
+- パスワードなしSSH成功  
+
+---
+
+## 5 SSH接続確認
+
+### コマンド
+```bash
+ssh -i ~/.ssh/id_ed25519 ec2-user@WebPrivateIP  
+```
+```bash
+ssh -i ~/.ssh/id_ed25519 ec2-user@DBPrivateIP  
+```
+
+---
+
+### OKの目安
+
+- 両方ログイン成功  
+
+---
+
+## 6 作業ディレクトリ作成
+
+### この工程でしていること
+
+Ansible管理用ディレクトリ作成
+
+---
+
+### コマンド
+```bash
+cd ~  
+```
+```bash
+mkdir ansible  
+```
+```bash
+cd ansible  
+```
+---
+
+### OKの目安
+
+- ansibleディレクトリ存在  
+
+---
+
+## 7 inventoryファイル作成
+
+### この工程でしていること
+
+対象サーバ定義
+
+---
+
+### ファイル
+```bash
+vi inventory.ini  
+```
+
+---
+
+### 確認
+```bash
+cat inventory.ini  
+```
+
+---
+
+### OKの目安
+
+- IP・鍵設定が正しい  
+
+---
+
+## 8 疎通確認
+
+### この工程でしていること
+
+Ansible接続確認
+
+---
+
+### コマンド
+```bash
+ansible -i inventory.ini all -m ping  
+```
+---
+
+### OKの目安
+
+- SUCCESS表示  
+
+---
+
+## 9 playbook作成
+
+### この工程でしていること
+
+構築処理をコード化
+
+---
+
+### ファイル
+```bash
+vi lamp_wp_2tier.yml  
+```
+---
+
+### 内容
+
+- DB構築  
+- Web構築  
+- WordPress設定  
+
+---
+
+### OKの目安
+
+- YAML構文が正しい  
+
+---
+
+## 10 依存モジュール導入
+
+### この工程でしていること
+
+MySQL操作用モジュール導入
+
+---
+
+### コマンド
 ```bash
 ansible-galaxy collection install community.mysql  
 ```
@@ -111,13 +315,21 @@ ansible-galaxy collection install community.mysql
 
 ### OKの目安
 
-- community.mysql が導入される  
+- インストール成功  
 
 ---
 
-### Pythonモジュール
+## 11 構文チェック
+
+### この工程でしていること
+
+playbookエラー事前検出
+
+---
+
+### コマンド
 ```bash
-pip install PyMySQL  
+ansible-playbook -i inventory.ini lamp_wp_2tier.yml --syntax-check  
 ```
 
 ---
@@ -128,143 +340,11 @@ pip install PyMySQL
 
 ---
 
-## inventory.ini準備
+## 12 playbook実行
 
 ### この工程でしていること
 
-管理対象サーバを定義
-
----
-
-### 実施内容
-
-- Webサーバ情報を記載  
-- DBサーバ情報を記載  
-- SSH鍵 / become設定記載  
-
----
-
-### 確認
-```bash
-ansible -i inventory.ini all -m ping  
-```
-
----
-
-### OKの目安
-
-- web / db 両方 SUCCESS  
-
----
-
-## playbook準備
-
-### この工程でしていること
-
-構築処理を定義
-
----
-
-### 実施内容
-
-- lamp_wp_2tier.yml ファイルを作成  
-- DBサーバ用Playを定義  
-- Webサーバ用Playを定義  
-- vars_promptを設定  
-
----
-
-### 入力項目
-
-- DB名  
-- DBユーザ名  
-- DBパスワード  
-- DBサーバPrivateIP  
-
----
-
-## DBサーバ側処理
-
-### この工程でしていること
-
-MariaDBとWordPress用DB構築
-
----
-
-### 自動化内容
-
-- MariaDBインストール  
-- 起動・自動起動設定  
-- 設定ファイル作成  
-- 再起動  
-- DB作成  
-- ユーザ作成  
-- 権限付与  
-
----
-
-### 確認項目
-
-- MariaDB active  
-- DB存在  
-- ユーザ存在  
-- 権限付与済  
-
----
-
-### OKの目安
-
-- systemctl status mariadb → active  
-- mysqlログイン可能  
-
----
-
-## Webサーバ側処理
-
-### この工程でしていること
-
-Apache + WordPress構築
-
----
-
-### 自動化内容
-
-- パッケージ更新  
-- Apache / PHP インストール  
-- Apache起動  
-- WordPressダウンロード  
-- 展開・配置  
-- wp-config.php 作成  
-- DB接続情報設定  
-- Apache設定変更  
-- 権限設定  
-- 構文チェック  
-- DB疎通確認  
-- Apache再起動  
-
----
-
-### 確認項目
-
-- httpd active  
-- wp-config.php構文OK  
-- httpd -t OK  
-- DB接続成功  
-
----
-
-### OKの目安
-
-- systemctl status httpd → active  
-- php -l wp-config.php → OK  
-
----
-
-## 実行方法
-
-### この工程でしていること
-
-Ansibleで自動構築実行
+環境自動構築
 
 ---
 
@@ -275,57 +355,55 @@ ansible-playbook -i inventory.ini lamp_wp_2tier.yml
 
 ---
 
-### 入力内容
+### 入力
 
 - DB名  
 - DBユーザ  
-- DBパスワード  
-- DBのPrivateIP  
+- パスワード  
+- DBサーバIP  
 
 ---
 
-## 実行後確認
+### OKの目安
 
-### Apache状態確認
+- failed=0  
+
+---
+
+## 13 動作確認
+
+### Apache確認
 ```bash
 ansible -i inventory.ini web -m shell -a "systemctl status httpd"  
 ```
 
 ---
 
-### OKの目安
-
-- active (running)  
-
----
-
-### MariaDB状態確認
+### MariaDB確認
 ```bash
 ansible -i inventory.ini db -m shell -a "systemctl status mariadb"  
 ```
 
 ---
 
-### OKの目安
-
-- active (running)  
-
----
-
-### Web → DB接続確認
+### DB接続確認
 ```bash
-ansible -i inventory.ini web -m shell -a "mysql -u <ユーザ> -h <DB_IP> -p'<パスワード>' <DB名> -e 'SELECT 1;'"  
+ansible -i inventory.ini web -m shell -a "mysql -u ユーザ -h DBIP -pパス DB名 -e 'SELECT 1;'"  
 ```
 
 ---
 
 ### OKの目安
 
-- SELECT 1 が返る  
+- httpd active  
+- mariadb active  
+- SELECT 1 成功  
 
 ---
 
-### ブラウザ確認
+## 14 WordPress確認
+
+### ブラウザ
 
 http://WebサーバPublicIP/  
 
@@ -333,51 +411,37 @@ http://WebサーバPublicIP/
 
 ### OKの目安
 
-- WordPressセットアップ画面  
+- 初期セットアップ画面表示  
 
 ---
 
-## 典型ミス
+## 15 よくあるミス
 
-### DB接続エラー
+### SSH接続不可
 
-原因  
-- SG設定ミス  
-- DB IPミス  
-- 認証情報ミス  
-
----
-
-### Apache表示されない
-
-原因  
-- 80未開放  
-- httpd未起動  
-
----
-
-### WordPress表示されない
-
-原因  
-- 配置ミス  
+- 鍵未配布  
 - 権限ミス  
-- wp-config誤り  
 
 ---
 
 ### Ansibleエラー
 
-原因  
-- community.mysql未導入  
-- PyMySQL未導入  
-- inventory設定ミス  
+- inventoryミス  
+- module不足  
 
 ---
 
-## 完成状態
+### DB接続エラー
 
-- Web/DB分離構成  
-- DB非公開（内部のみ）  
-- Apache + PHP + WordPress動作  
-- Web → DB疎通OK  
-- WordPress初期画面表示  
+- SG設定ミス  
+- DB_HOSTミス  
+- wp-config.php誤り  
+
+---
+
+## 完了状態
+
+- Web / DB 分離構成  
+- DB外部非公開  
+- Ansibleで再現可能  
+- WordPress正常起動  

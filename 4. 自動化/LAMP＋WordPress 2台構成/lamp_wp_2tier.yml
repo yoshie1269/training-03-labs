@@ -20,10 +20,17 @@
     mariadb_bind_address: "0.0.0.0"
 
   tasks:
-    - name: MariaDBインストール
+    - name: MariaDB関連パッケージインストール
       ansible.builtin.dnf:
-        name: mariadb105-server
+        name:
+          - mariadb105-server
+          - python3-pip
         state: present
+
+    - name: DBサーバにPyMySQLをpipでインストール
+      ansible.builtin.pip:
+        name: PyMySQL
+        executable: pip3
 
     - name: MariaDB起動
       ansible.builtin.systemd:
@@ -85,15 +92,15 @@
 
   vars_prompt:
     - name: wp_db_name
-      prompt: "WordPressで使用するDB名を入力してください"
+      prompt: "WordPressで使用するDB名を入力してください（DB側と同じ値）"
       private: no
 
     - name: wp_db_user
-      prompt: "WordPressで使用するDBユーザ名を入力してください"
+      prompt: "WordPressで使用するDBユーザ名を入力してください（DB側と同じ値）"
       private: no
 
     - name: wp_db_password
-      prompt: "WordPressで使用するDBパスワードを入力してください"
+      prompt: "WordPressで使用するDBパスワードを入力してください（DB側と同じ値）"
       private: yes
 
     - name: wp_db_host
@@ -123,7 +130,13 @@
           - wget
           - php-gd
           - mariadb105
+          - python3-pip
         state: present
+
+    - name: WebサーバにPyMySQLをpipでインストール
+      ansible.builtin.pip:
+        name: PyMySQL
+        executable: pip3
 
     - name: Apache起動
       ansible.builtin.systemd:
@@ -163,39 +176,39 @@
         group: apache
         mode: preserve
 
-    - name: wp-config.php 作成
+    - name: wp-config.php を sample から毎回再作成
       ansible.builtin.copy:
         src: "{{ wp_docroot }}/wp-config-sample.php"
         dest: "{{ wp_docroot }}/wp-config.php"
         remote_src: true
-        force: false
+        force: true
         owner: apache
         group: apache
         mode: "0644"
 
     - name: DB_NAME設定
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ wp_docroot }}/wp-config.php"
-        regexp: "database_name_here"
-        replace: "{{ wp_db_name }}"
+        regexp: "^define\\( 'DB_NAME', .*\\);"
+        line: "define( 'DB_NAME', '{{ wp_db_name }}' );"
 
     - name: DB_USER設定
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ wp_docroot }}/wp-config.php"
-        regexp: "username_here"
-        replace: "{{ wp_db_user }}"
+        regexp: "^define\\( 'DB_USER', .*\\);"
+        line: "define( 'DB_USER', '{{ wp_db_user }}' );"
 
     - name: DB_PASSWORD設定
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ wp_docroot }}/wp-config.php"
-        regexp: "password_here"
-        replace: "{{ wp_db_password }}"
+        regexp: "^define\\( 'DB_PASSWORD', .*\\);"
+        line: "define( 'DB_PASSWORD', '{{ wp_db_password }}' );"
 
     - name: DB_HOST設定
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ wp_docroot }}/wp-config.php"
-        regexp: "localhost"
-        replace: "{{ wp_db_host }}"
+        regexp: "^define\\( 'DB_HOST', .*\\);"
+        line: "define( 'DB_HOST', '{{ wp_db_host }}' );"
 
     - name: Apache設定バックアップ作成
       ansible.builtin.copy:
@@ -225,6 +238,15 @@
       ansible.builtin.command: chmod -R 755 /var/www
       changed_when: true
 
+    - name: wp-config.php 内容確認
+      ansible.builtin.command: grep DB_ /var/www/html/wp-config.php
+      register: wp_config_check
+      changed_when: false
+
+    - name: wp-config.php 内容表示
+      ansible.builtin.debug:
+        var: wp_config_check.stdout_lines
+
     - name: wp-config.php 構文確認
       ansible.builtin.command: php -l /var/www/html/wp-config.php
       register: wp_config_syntax
@@ -245,7 +267,11 @@
 
     - name: Web→DB疎通確認
       ansible.builtin.command: >
-        mysql -u {{ wp_db_user }} -h {{ wp_db_host }} -p{{ wp_db_password }} {{ wp_db_name }} -e "SELECT 1;"
+        mysql -u {{ wp_db_user }}
+        -h {{ wp_db_host }}
+        -p{{ wp_db_password }}
+        {{ wp_db_name }}
+        -e "SELECT 1;"
       register: mysql_conn_check
       changed_when: false
       no_log: true
