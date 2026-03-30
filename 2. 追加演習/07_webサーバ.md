@@ -1,6 +1,16 @@
 # Basic認証 構築手順書（Amazon Linux 2023）
 
+## Basic認証とは
+
+Webサイトや特定ディレクトリにユーザー名とパスワードによる制限をかける簡易な認証方式。
+
+Amazon Linux 2023（AL2023）では、Apache（httpd）やNginxを用いて設定し、開発・テスト環境の一時的なセキュリティ対策やサイト公開前の保護に利用される。
+
+- 仕組み：ブラウザが認証情報を要求し、サーバー側の.htpasswdファイルなどで照合
+- 用途：テスト環境の保護、未公開サイトのアクセス制限
+
 ---
+<br>
 
 ## 1 rootに昇格
 
@@ -21,6 +31,7 @@ whoami
 - root と表示される  
 
 ---
+<br>
 
 ## 2 Apache(httpd)をインストール
 
@@ -45,6 +56,7 @@ rpm -qa | grep httpd
 - httpd が表示される  
 
 ---
+<br>
 
 ## 3 Apacheを起動・自動起動設定
 
@@ -71,6 +83,7 @@ systemctl status httpd --no-pager
 - active (running)  
 
 ---
+<br>
 
 ## 4 公開用ディレクトリと確認用ページ作成
 
@@ -93,6 +106,7 @@ ls -l /var/www/html/test
 - index.html が存在  
 
 ---
+<br>
 
 ## 5 Basic認証設定ファイル作成
 
@@ -134,6 +148,7 @@ cat /etc/httpd/conf.d/basic-test.conf
 - 設定内容が表示される  
 
 ---
+<br>
 
 ## 6 Basic認証ユーザー作成
 
@@ -158,6 +173,7 @@ cat /etc/httpd/conf/.htpasswd
 - test:xxxx（暗号化パスワード）が表示  
 
 ---
+<br>
 
 ## 7 設定ファイル確認
 
@@ -179,6 +195,7 @@ ls -l /var/www/html/test/index.html
 - すべてのファイルが存在  
 
 ---
+<br>
 
 ## 8 構文チェック
 
@@ -194,6 +211,7 @@ apachectl configtest
 - Syntax OK  
 
 ---
+<br>
 
 ## 9 Apache再起動
 
@@ -212,6 +230,7 @@ systemctl status httpd --no-pager
 - active (running)  
 
 ---
+<br>
 
 ## 10 動作確認（重要）
 
@@ -239,6 +258,7 @@ curl -u test:<パスワード> -I http://127.0.0.1/test/
 - HTTP/1.1 200 OK  
 
 ---
+<br>
 
 ## 11 ブラウザ確認
 
@@ -259,6 +279,7 @@ http://サーバIP/test/
 - ログイン後に Hello World 表示  
 
 ---
+<br>
 
 ## 12 パスワード再設定
 
@@ -274,6 +295,7 @@ htpasswd /etc/httpd/conf/.htpasswd test
 - 新しいパスワードでログインできる  
 
 ---
+<br>
 
 ## 13 ユーザー名確認
 
@@ -289,6 +311,7 @@ cat /etc/httpd/conf/.htpasswd
 - ユーザー名が表示される  
 
 ---
+<br>
 
 ## 14 よくあるハマりポイント
 
