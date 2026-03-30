@@ -290,9 +290,14 @@ OKの目安：
 ## 5. Web→DB 疎通確認
 
 ---
-
+webにもmariadbインストール：
 ```bash
-mysql -u wpuser -h DBのPrivateIP -p wordpress_db
+sudo dnf install mariadb105-server -y
+```
+
+疎通確認：
+```bash
+mysql -u <ユーザ名> -h <DBのPrivateIP> -p <データベース名>
 ```
 OKの目安：
 - MariaDBモニタに入れる
@@ -302,25 +307,32 @@ OKの目安：
 ## 6. Apache設定
 
 ---
-
+バックアップ：
 ```bash
-vi /etc/httpd/conf/httpd.conf
+cp /etc/httpd/conf/httpd.conf /etc/httpd/conf/httpd.conf.bk
+```
+
+設定変更：
+```bash
+sudo vi /etc/httpd/conf/httpd.conf
 ```
 ```bash
 <Directory "/var/www/html">
 AllowOverride All
 </Directory>
 ```
+
 確認：
 ```bash
 httpd -t
 ```
+
 OKの目安：
 - Syntax OK
 
 再起動：
 ```bash
-systemctl restart httpd
+sudo systemctl restart httpd
 ```
 
 ---
@@ -328,7 +340,6 @@ systemctl restart httpd
 ## 7. Webインストール
 
 ---
-
 
 ブラウザ：
 ```bash
