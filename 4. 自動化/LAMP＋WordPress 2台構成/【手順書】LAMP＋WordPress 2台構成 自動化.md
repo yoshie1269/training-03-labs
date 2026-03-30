@@ -11,10 +11,11 @@
 ---
 
 ### 構成
-
+```
 [Ansible実行端末]  
 ↓ SSH  
 [EC2-Web]　　　[EC2-DB]  
+```
 
 - Web：Apache / PHP / WordPress  
 - DB：MariaDB  
@@ -89,8 +90,9 @@ Ansibleの実行環境を整備
 ---
 
 ### 確認
-
+```bash
 ansible --version  
+```
 
 ---
 
@@ -101,8 +103,9 @@ ansible --version
 ---
 
 ### コレクション導入
-
+```bash
 ansible-galaxy collection install community.mysql  
+```
 
 ---
 
@@ -113,8 +116,9 @@ ansible-galaxy collection install community.mysql
 ---
 
 ### Pythonモジュール
-
+```bash
 pip install PyMySQL  
+```
 
 ---
 
@@ -141,8 +145,9 @@ pip install PyMySQL
 ---
 
 ### 確認
-
+```bash
 ansible -i inventory.ini all -m ping  
+```
 
 ---
 
@@ -264,8 +269,9 @@ Ansibleで自動構築実行
 ---
 
 ### コマンド
-
+```bash
 ansible-playbook -i inventory.ini lamp_wp_2tier.yml  
+```
 
 ---
 
@@ -281,8 +287,9 @@ ansible-playbook -i inventory.ini lamp_wp_2tier.yml
 ## 実行後確認
 
 ### Apache状態確認
-
+```bash
 ansible -i inventory.ini web -m shell -a "systemctl status httpd"  
+```
 
 ---
 
@@ -293,8 +300,9 @@ ansible -i inventory.ini web -m shell -a "systemctl status httpd"
 ---
 
 ### MariaDB状態確認
-
+```bash
 ansible -i inventory.ini db -m shell -a "systemctl status mariadb"  
+```
 
 ---
 
@@ -305,8 +313,9 @@ ansible -i inventory.ini db -m shell -a "systemctl status mariadb"
 ---
 
 ### Web → DB接続確認
-
+```bash
 ansible -i inventory.ini web -m shell -a "mysql -u <ユーザ> -h <DB_IP> -p'<パスワード>' <DB名> -e 'SELECT 1;'"  
+```
 
 ---
 
