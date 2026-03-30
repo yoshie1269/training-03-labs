@@ -253,13 +253,31 @@ OKの目安：
 ### この工程でしていること
 - WebサーバからDBへ接続できるようにする
 
+WordPressの初期設定ファイル作成：
+```bash
+cd /var/www/html
+```
+```bash
+sudo cp wp-config-sample.php wp-config.php
+```
+
+確認：
+```bash
+ls -l wp-config.php
+```
+
 wp-config.php 設定：
 ```bash
-define('DB_NAME', 'wordpress_db');
-define('DB_USER', 'wpuser');
-define('DB_PASSWORD', 'StrongPass123');
-define('DB_HOST', 'DBサーバのPrivateIP');
+sudo vi /var/www/html/wp-config.php
 ```
+
+```bash
+define( 'DB_NAME', 'データベース名' );
+define( 'DB_USER', 'ユーザー名' );
+define( 'DB_PASSWORD', 'パスワード' );
+define( 'DB_HOST', 'localhost' );
+```
+
 確認：
 ```bash
 php -l /var/www/html/wp-config.php
