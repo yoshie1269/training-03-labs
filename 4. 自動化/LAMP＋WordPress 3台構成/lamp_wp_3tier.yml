@@ -1,0 +1,298 @@
+---
+- name: 入力値を1回だけ受け取る
+  hosts: localhost
+  gather_facts: false
+
+  vars_prompt:
+    - name: input_wp_db_name
+      prompt: "DB名"
+      private: no
+
+    - name: input_wp_db_user
+      prompt: "DBユーザ"
+      private: no
+
+    - name: input_wp_db_password
+      prompt: "DBパスワード"
+      private: yes
+
+    - name: input_wp_site_url
+      prompt: "Web公開URLを入力してください（例: http://52.25.78.238）"
+      private: no
+
+  tasks:
+    - name: 入力値をlocalhostのfactとして保存
+      ansible.builtin.set_fact:
+        saved_wp_db_name: "{{ input_wp_db_name }}"
+        saved_wp_db_user: "{{ input_wp_db_user }}"
+        saved_wp_db_password: "{{ input_wp_db_password }}"
+        saved_wp_site_url: "{{ input_wp_site_url }}"
+
+    - name: 入力値確認
+      ansible.builtin.debug:
+        msg:
+          - "DB名: {{ saved_wp_db_name }}"
+          - "DBユーザ: {{ saved_wp_db_user }}"
+          - "Web公開URL: {{ saved_wp_site_url }}"
+
+
+- name: DBサーバ構築（MariaDB）
+  hosts: db
+  become: true
+
+  vars:
+    db_bind_address: "0.0.0.0"
+    wp_db_name: "{{ hostvars['localhost']['saved_wp_db_name'] }}"
+    wp_db_user: "{{ hostvars['localhost']['saved_wp_db_user'] }}"
+    wp_db_password: "{{ hostvars['localhost']['saved_wp_db_password'] }}"
+
+  tasks:
+    - name: MariaDB関連パッケージ導入
+      ansible.builtin.dnf:
+        name:
+          - mariadb105-server
+          - python3-pip
+        state: present
+
+    - name: PyMySQLインストール
+      ansible.builtin.pip:
+        name: PyMySQL
+        executable: pip3
+
+    - name: MariaDB起動
+      ansible.builtin.systemd:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: bind-address設定ファイル作成
+      ansible.builtin.copy:
+        dest: /etc/my.cnf.d/bind.cnf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [mysqld]
+          bind-address={{ db_bind_address }}
+      notify: restart mariadb
+
+    - name: handler反映
+      ansible.builtin.meta: flush_handlers
+
+    - name: WordPress用DB作成
+      community.mysql.mysql_db:
+        name: "{{ wp_db_name }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: WordPress用ユーザ作成
+      community.mysql.mysql_user:
+        name: "{{ wp_db_user }}"
+        password: "{{ wp_db_password }}"
+        host: "%"
+        priv: "{{ wp_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: DB確認
+      community.mysql.mysql_query:
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        query:
+          - "SHOW DATABASES;"
+          - "SELECT user,host FROM mysql.user;"
+      register: db_check
+
+    - name: DB確認結果表示
+      ansible.builtin.debug:
+        var: db_check.query_result
+
+  handlers:
+    - name: restart mariadb
+      ansible.builtin.systemd:
+        name: mariadb
+        state: restarted
+
+
+- name: APサーバ構築（WordPress + PHP）
+  hosts: ap
+  become: true
+
+  vars:
+    wp_db_name: "{{ hostvars['localhost']['saved_wp_db_name'] }}"
+    wp_db_user: "{{ hostvars['localhost']['saved_wp_db_user'] }}"
+    wp_db_password: "{{ hostvars['localhost']['saved_wp_db_password'] }}"
+    wp_site_url: "{{ hostvars['localhost']['saved_wp_site_url'] }}"
+    wp_db_host: "{{ groups['db'][0] }}"
+    wp_docroot: /var/www/html
+
+  tasks:
+    - name: AP関連パッケージ導入
+      ansible.builtin.dnf:
+        name:
+          - httpd
+          - php
+          - php-mysqlnd
+          - wget
+          - mariadb105
+        state: present
+
+    - name: Apache起動
+      ansible.builtin.systemd:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: WordPressダウンロード
+      ansible.builtin.get_url:
+        url: https://wordpress.org/latest.tar.gz
+        dest: /tmp/latest.tar.gz
+        mode: "0644"
+
+    - name: 既存展開ディレクトリ削除
+      ansible.builtin.file:
+        path: /tmp/wordpress
+        state: absent
+
+    - name: WordPress展開
+      ansible.builtin.unarchive:
+        src: /tmp/latest.tar.gz
+        dest: /tmp
+        remote_src: true
+
+    - name: WordPress配置
+      ansible.builtin.copy:
+        src: /tmp/wordpress/
+        dest: "{{ wp_docroot }}/"
+        remote_src: true
+        owner: apache
+        group: apache
+        mode: preserve
+
+    - name: wp-config.phpをsampleから再作成
+      ansible.builtin.copy:
+        src: "{{ wp_docroot }}/wp-config-sample.php"
+        dest: "{{ wp_docroot }}/wp-config.php"
+        remote_src: true
+        force: true
+        owner: apache
+        group: apache
+        mode: "0644"
+
+    - name: DB_NAME設定
+      ansible.builtin.lineinfile:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "^define\\( 'DB_NAME',"
+        line: "define( 'DB_NAME', '{{ wp_db_name }}' );"
+
+    - name: DB_USER設定
+      ansible.builtin.lineinfile:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "^define\\( 'DB_USER',"
+        line: "define( 'DB_USER', '{{ wp_db_user }}' );"
+
+    - name: DB_PASSWORD設定
+      ansible.builtin.lineinfile:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "^define\\( 'DB_PASSWORD',"
+        line: "define( 'DB_PASSWORD', '{{ wp_db_password }}' );"
+
+    - name: DB_HOST設定
+      ansible.builtin.lineinfile:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "^define\\( 'DB_HOST',"
+        line: "define( 'DB_HOST', '{{ wp_db_host }}' );"
+
+    - name: WP_HOME / WP_SITEURL 設定
+      ansible.builtin.blockinfile:
+        path: "{{ wp_docroot }}/wp-config.php"
+        marker: "// {mark} ANSIBLE WP URL SETTINGS"
+        insertbefore: "/\\* That's all, stop editing! Happy publishing. \\*/"
+        block: |
+          define( 'WP_HOME', '{{ wp_site_url }}' );
+          define( 'WP_SITEURL', '{{ wp_site_url }}' );
+
+    - name: 所有者設定
+      ansible.builtin.file:
+        path: /var/www
+        owner: apache
+        group: apache
+        recurse: true
+
+    - name: wp-config.php構文確認
+      ansible.builtin.command: php -l {{ wp_docroot }}/wp-config.php
+      register: wp_syntax
+      changed_when: false
+
+    - name: wp-config.php構文確認結果表示
+      ansible.builtin.debug:
+        var: wp_syntax.stdout_lines
+
+    - name: AP→DB接続確認
+      ansible.builtin.command: >
+        mysql -u {{ wp_db_user }}
+        -h {{ wp_db_host }}
+        -p{{ wp_db_password }}
+        {{ wp_db_name }}
+        -e "SELECT 1;"
+      register: ap_db_check
+      changed_when: false
+      no_log: true
+
+    - name: AP→DB接続結果表示
+      ansible.builtin.debug:
+        msg: "AP→DB接続確認OK"
+
+
+- name: Webサーバ構築（Apacheリバースプロキシ）
+  hosts: web
+  become: true
+
+  vars:
+    ap_host: "{{ groups['ap'][0] }}"
+
+  tasks:
+    - name: Apache導入
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: プロキシ設定ファイル作成
+      ansible.builtin.copy:
+        dest: /etc/httpd/conf.d/proxy.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          ProxyRequests Off
+          ProxyPreserveHost On
+          ProxyPass / http://{{ ap_host }}/
+          ProxyPassReverse / http://{{ ap_host }}/
+      notify: restart httpd
+
+    - name: handler反映
+      ansible.builtin.meta: flush_handlers
+
+    - name: proxy設定確認
+      ansible.builtin.command: cat /etc/httpd/conf.d/proxy.conf
+      register: proxy_conf
+      changed_when: false
+
+    - name: proxy設定表示
+      ansible.builtin.debug:
+        var: proxy_conf.stdout_lines
+
+    - name: Web→AP疎通確認
+      ansible.builtin.command: curl -I --max-time 5 http://{{ ap_host }}
+      register: web_ap_check
+      changed_when: false
+
+    - name: Web→AP疎通結果表示
+      ansible.builtin.debug:
+        var: web_ap_check.stdout_lines
+
+  handlers:
+    - name: restart httpd
+      ansible.builtin.systemd:
+        name: httpd
+        state: restarted
+        enabled: true
