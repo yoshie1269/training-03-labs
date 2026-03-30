@@ -120,13 +120,13 @@ OKの目安：
 mysql -u root -p
 ```
 ```bash
-CREATE DATABASE wordpress_db;
+CREATE DATABASE <DB名>;
 ```
 ```bash
-CREATE USER 'wpuser'@'%' IDENTIFIED BY 'StrongPass123';
+CREATE USER '<ユーザ名>'@'%' IDENTIFIED BY '<パスワード>';
 ```
 ```bash
-GRANT ALL PRIVILEGES ON wordpress_db.* TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON wordpress_db.* TO '<ユーザ名>'@'%';
 ```
 ```bash
 FLUSH PRIVILEGES;
@@ -272,10 +272,10 @@ sudo vi /var/www/html/wp-config.php
 ```
 
 ```bash
-define( 'DB_NAME', 'データベース名' );
-define( 'DB_USER', 'ユーザー名' );
-define( 'DB_PASSWORD', 'パスワード' );
-define( 'DB_HOST', 'localhost' );
+define('DB_NAME', '<DB名>');
+define('DB_USER', '<ユーザ名>');
+define('DB_PASSWORD', '<パスワード>');
+define('DB_HOST', '<DBサーバのPrivateIP>');
 ```
 
 確認：
