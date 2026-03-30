@@ -1,0 +1,273 @@
+---
+- name: DBサーバ構築（MariaDB）
+  hosts: db
+  become: true
+
+  vars_prompt:
+    - name: wp_db_name
+      prompt: "WordPressで使用するDB名を入力してください"
+      private: no
+
+    - name: wp_db_user
+      prompt: "WordPressで使用するDBユーザ名を入力してください"
+      private: no
+
+    - name: wp_db_password
+      prompt: "WordPressで使用するDBパスワードを入力してください"
+      private: yes
+
+  vars:
+    mariadb_bind_address: "0.0.0.0"
+
+  tasks:
+    - name: MariaDBインストール
+      ansible.builtin.dnf:
+        name: mariadb105-server
+        state: present
+
+    - name: MariaDB起動
+      ansible.builtin.systemd:
+        name: mariadb
+        state: started
+        enabled: true
+
+    - name: MariaDB設定ファイル作成
+      ansible.builtin.copy:
+        dest: /etc/my.cnf.d/wordpress-server.cnf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [mysqld]
+          bind-address={{ mariadb_bind_address }}
+      notify: restart mariadb
+
+    - name: MariaDB再起動前にhandler実行
+      ansible.builtin.meta: flush_handlers
+
+    - name: WordPress用DB作成
+      community.mysql.mysql_db:
+        name: "{{ wp_db_name }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: WordPress用ユーザ作成
+      community.mysql.mysql_user:
+        name: "{{ wp_db_user }}"
+        password: "{{ wp_db_password }}"
+        host: "%"
+        priv: "{{ wp_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: DB一覧確認
+      community.mysql.mysql_query:
+        login_unix_socket: /var/lib/mysql/mysql.sock
+        query:
+          - "SHOW DATABASES;"
+          - "SELECT user,host FROM mysql.user;"
+      register: db_check_result
+
+    - name: DB確認結果表示
+      ansible.builtin.debug:
+        var: db_check_result.query_result
+
+  handlers:
+    - name: restart mariadb
+      ansible.builtin.systemd:
+        name: mariadb
+        state: restarted
+
+
+- name: Webサーバ構築（Apache + PHP + WordPress）
+  hosts: web
+  become: true
+
+  vars_prompt:
+    - name: wp_db_name
+      prompt: "WordPressで使用するDB名を入力してください"
+      private: no
+
+    - name: wp_db_user
+      prompt: "WordPressで使用するDBユーザ名を入力してください"
+      private: no
+
+    - name: wp_db_password
+      prompt: "WordPressで使用するDBパスワードを入力してください"
+      private: yes
+
+    - name: wp_db_host
+      prompt: "DBサーバのPrivate IPを入力してください"
+      private: no
+
+  vars:
+    wp_src_dir: /usr/local/src
+    wp_archive: /usr/local/src/latest.tar.gz
+    wp_extract_dir: /usr/local/src/wordpress
+    wp_docroot: /var/www/html
+
+  tasks:
+    - name: パッケージ更新
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_only: true
+
+    - name: Web関連パッケージ導入
+      ansible.builtin.dnf:
+        name:
+          - httpd
+          - php
+          - php-mysqlnd
+          - php-fpm
+          - wget
+          - php-gd
+          - mariadb105
+        state: present
+
+    - name: Apache起動
+      ansible.builtin.systemd:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: WordPressダウンロード用ディレクトリ作成
+      ansible.builtin.file:
+        path: "{{ wp_src_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: WordPressダウンロード
+      ansible.builtin.get_url:
+        url: https://wordpress.org/latest.tar.gz
+        dest: "{{ wp_archive }}"
+        mode: "0644"
+
+    - name: 既存WordPress展開ディレクトリ削除
+      ansible.builtin.file:
+        path: "{{ wp_extract_dir }}"
+        state: absent
+
+    - name: WordPress展開
+      ansible.builtin.unarchive:
+        src: "{{ wp_archive }}"
+        dest: "{{ wp_src_dir }}"
+        remote_src: true
+
+    - name: /var/www/html へWordPress配置
+      ansible.builtin.copy:
+        src: "{{ wp_extract_dir }}/"
+        dest: "{{ wp_docroot }}/"
+        remote_src: true
+        owner: apache
+        group: apache
+        mode: preserve
+
+    - name: wp-config.php 作成
+      ansible.builtin.copy:
+        src: "{{ wp_docroot }}/wp-config-sample.php"
+        dest: "{{ wp_docroot }}/wp-config.php"
+        remote_src: true
+        force: false
+        owner: apache
+        group: apache
+        mode: "0644"
+
+    - name: DB_NAME設定
+      ansible.builtin.replace:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "database_name_here"
+        replace: "{{ wp_db_name }}"
+
+    - name: DB_USER設定
+      ansible.builtin.replace:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "username_here"
+        replace: "{{ wp_db_user }}"
+
+    - name: DB_PASSWORD設定
+      ansible.builtin.replace:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "password_here"
+        replace: "{{ wp_db_password }}"
+
+    - name: DB_HOST設定
+      ansible.builtin.replace:
+        path: "{{ wp_docroot }}/wp-config.php"
+        regexp: "localhost"
+        replace: "{{ wp_db_host }}"
+
+    - name: Apache設定バックアップ作成
+      ansible.builtin.copy:
+        src: /etc/httpd/conf/httpd.conf
+        dest: /etc/httpd/conf/httpd.conf.bk
+        remote_src: true
+        force: false
+
+    - name: AllowOverride All 設定
+      ansible.builtin.blockinfile:
+        path: /etc/httpd/conf/httpd.conf
+        marker: "# {mark} ANSIBLE WORDPRESS DIRECTORY"
+        block: |
+          <Directory "/var/www/html">
+              AllowOverride All
+          </Directory>
+      notify: restart httpd
+
+    - name: /var/www 所有者変更
+      ansible.builtin.file:
+        path: /var/www
+        owner: apache
+        group: apache
+        recurse: true
+
+    - name: /var/www パーミッション変更
+      ansible.builtin.command: chmod -R 755 /var/www
+      changed_when: true
+
+    - name: wp-config.php 構文確認
+      ansible.builtin.command: php -l /var/www/html/wp-config.php
+      register: wp_config_syntax
+      changed_when: false
+
+    - name: wp-config.php 構文確認結果表示
+      ansible.builtin.debug:
+        var: wp_config_syntax.stdout_lines
+
+    - name: httpd構文確認
+      ansible.builtin.command: httpd -t
+      register: httpd_syntax
+      changed_when: false
+
+    - name: httpd構文確認結果表示
+      ansible.builtin.debug:
+        var: httpd_syntax.stdout_lines
+
+    - name: Web→DB疎通確認
+      ansible.builtin.command: >
+        mysql -u {{ wp_db_user }} -h {{ wp_db_host }} -p{{ wp_db_password }} {{ wp_db_name }} -e "SELECT 1;"
+      register: mysql_conn_check
+      changed_when: false
+      no_log: true
+
+    - name: Web→DB接続結果表示
+      ansible.builtin.debug:
+        msg: "Web→DB接続確認OK"
+
+    - name: Apache再起動前にhandler実行
+      ansible.builtin.meta: flush_handlers
+
+    - name: Apache状態確認
+      ansible.builtin.command: systemctl status httpd
+      register: httpd_status
+      changed_when: false
+
+    - name: Apache状態結果表示
+      ansible.builtin.debug:
+        var: httpd_status.stdout_lines
+
+  handlers:
+    - name: restart httpd
+      ansible.builtin.systemd:
+        name: httpd
+        state: restarted
